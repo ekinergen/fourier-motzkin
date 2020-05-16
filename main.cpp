@@ -1,8 +1,9 @@
 #include<iostream>
 #include<vector>
 #include<list>
-#include<vector>
-
+#include <fstream> // for file-access
+#include <string>
+#include<sstream>
 using namespace std;
 
 int sign(double x) {
@@ -40,6 +41,44 @@ void vector_addition(const vector<double> &a,
 	for (size_t i = 0; i < c.size(); ++i) {
 		c[i] += a[i] + b[i];
 	}
+}
+
+void readfile(size_t num_rows, size_t num_cols, vector<double> &c, list< vector<double> > &A, char* filename){
+    ifstream infile(filename); //open the file
+    string line;
+	list<vector <double> >::iterator it=A.begin();
+	if (infile.is_open() && infile.good()) {
+        int counter = 0;
+        string line;
+        while (getline(infile, line)) {
+            istringstream row(line);
+            double field;
+            if(counter == 0){
+                row>> num_rows >> num_cols;
+            }
+            if(counter ==1){
+                while(row>>field){
+                    c.push_back(field);
+                }
+            }
+            if(counter==2){
+                while(row>>field){
+                    vector<double> column;
+                        column.push_back(field);
+                        A.push_back(column);
+                }
+            }
+            else{
+                advance(it,1);
+                while(row>>field){
+                     it->push_back(field);		
+                }
+	    }		
+            counter++;
+        }
+    } else {
+        cout << "Failed to open file";
+    }
 }
 
 void fourier_motzkin(list<vector<double>> &A) {
