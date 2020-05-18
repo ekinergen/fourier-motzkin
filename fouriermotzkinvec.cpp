@@ -88,10 +88,12 @@ void add_rows(std::list<double> &row_u, std::list<double> &row_l, std::list<doub
 }
 
 void set_last_variable(std::vector<std::list<double> > &A, double val){ //We are given a system of inequalities a1x1+a2x2+...+a_nx_n<=b and we get rid of the last variable of each inequality by plugging in val into the last variable, i.e. we want a1x1+a2x2+...+a_(n-1)x_(n-1)<=b-a_n*val.
+	if (A[0].size()==1) return; //this will be handled in backtracking 
 	for(size_t i = 0; i<A.size(); i++){
 		*(A[i].begin())-=A[i].back()*val; //A[i][0]=b in the i-th inequality
 		A[i].pop_back();
 	}
+	
 }
 
 void set_first_variable(std::vector<std::list<double> > &A, double val){ //We are given a system of inequalities a1x1+a2x2+...+a_nx_n<=b and we get rid of the first variable of each inequality by plugging in val into the first variable, i.e. we want a2x2+...+a_nx_n<=b-a_1*val.
@@ -108,7 +110,7 @@ void fouriermotzkin(std::vector<std::list<double> > &mat, size_t num_rows, size_
 	std::vector<double> admissible_solution(mat[0].size()-1, 0); //num_cols=number of variables+1 (because we also store b in a column)
 	A.push_back(mat);
 	
-	while(A.back()[0].size()>1){	//A.back() is the last matrix that we added. If its first row (and hence all rows) has size 1, it means that there are 0 variables.
+	while(A.back()[0].size()!=1){	//A.back() is the last matrix that we added. If its first row (and hence all rows) has size 1, it means that there are 0 variables.
 		std::vector<std::list<double> > U;
 		std::vector<std::list<double> > L;
 		std::vector<std::list<double> > N;
@@ -139,7 +141,7 @@ void fouriermotzkin(std::vector<std::list<double> > &mat, size_t num_rows, size_
 		std::cout<<std::endl;
 		std::cout<<"N: "<<std::endl;
 		printmatrix(N);
-		std::cout<<std::endl;
+		std::cout<<std::endl;*/
 		//we get the new inequalities*/
 		std::vector<std::list<double> > B;
 		if((not U.empty()) and not L.empty()){
@@ -151,24 +153,26 @@ void fouriermotzkin(std::vector<std::list<double> > &mat, size_t num_rows, size_
 					
 				}
 			}
-		}
+	}
 		//std::cout<<"test1";
+		
 		for(size_t k=0; k<N.size(); k++){
 			B.push_back(N[k]);
 		}
 		if(B.empty()){//in this case we know that the last variable either has upper bounds only or lower bounds only. So we can actually already set a large or small value to it and continue. 
-			if(U.empty()){ //then we only have upper bounds for x_n, also in terms of other variables etc. 
-				admissible_solution[L[0].size()-1]=small; //We are at the L[0].size()-1-th variable at this time, again because we store b as a column.
-				set_last_variable(B,small);
+			if(U.empty()){ //then we only have lower bounds for x_n, also in terms of other variables etc. 
+				admissible_solution[L[0].size()]=big; //We are at the L[0].size()-1-th variable at this time, again because we store b as a column. However, we just popped back the last variable from L, so size() is one smaller than it should have been normally.
+				
+				set_last_variable(A.back(),big);
 			}
-			if(L.empty()){//in this case, x_n only has lower bounds. So we can set a very large number and continue.
-				admissible_solution[L[0].size()-1]=big;
-				set_last_variable(B,big) ;
+			if(L.empty()){//in this case, x_n only has upper bounds. So we can set a very small number and continue.
+				admissible_solution[U[0].size()]=small;
+				std::cout<<A.size()<<" is small";
+				set_last_variable(A.back(),small) ;
 			}
 			
 			continue; //B is empty, so we don't want to put it as a phase, instead, we work with the same system as in this iteration, except we evaluate at x_n.
 		} 
-		//std::cout<<"test2";
 		A.push_back(B);
 	}
 	
@@ -177,9 +181,9 @@ void fouriermotzkin(std::vector<std::list<double> > &mat, size_t num_rows, size_
 	std::cout<<"test3";*/
 	bool admissible = true;
 	for(size_t i =0 ; i<A.back().size(); i++){ //iterating over all columns
+		std::cout<<*(A.back()[i].begin())<<std::endl;
 		if(*(A.back()[i].begin())<0) admissible=false;
 	}
-	//std::cout<<"test4";
 	/*backtracking*/
 	if(admissible){
 		size_t var_index=0; //Throughout commentary, let us call this number n. 
@@ -214,5 +218,6 @@ int main(int argc, char* argv[])
     std::vector< std::list<double> > A; //b ist die erste Spalte von A
     readfile(num_rows, num_cols, c, A, argv[1]);
 	fouriermotzkin(A, num_rows, num_cols);
+
     return 0;
 }
