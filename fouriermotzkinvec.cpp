@@ -12,7 +12,6 @@ void readfile(size_t num_rows, size_t num_cols, std::list<double> &c, std::vecto
     std::string line;
     if (infile.is_open() && infile.good()) {
         int counter = 0;
-        int matrix_counter=0;
         std::string line;
         while (std::getline(infile, line)) {
             std::istringstream row(line);
@@ -47,13 +46,14 @@ void readfile(size_t num_rows, size_t num_cols, std::list<double> &c, std::vecto
 void normalize(std::list<double> &vec){ //normalizes at the last variable
 	if (vec.back()==0) return;
 	double divide=vec.back();
-	for(auto i:vec){
-		i=i/divide;
+	for(auto it=vec.begin(); it!=vec.end(); it++){
+		*(it)=*(it)/divide;
+		
 	}
 }
 
 void printmatrix(std::vector<std::list<double> > &A){
-	for(int i=0; i<A.size(); i++){
+	for(size_t i=0; i<A.size(); i++){
 		for(auto j: A[i]){
 			std::cout<<j<<" ";
 		}
@@ -71,17 +71,20 @@ double max(std::list<double> &vec){
 
 double min_b(std::vector<std::list<double> > &A){
 	double val = *(A[0].begin());
-	for(int i=1; i<A.size(); i++){
+	for(size_t i=1; i<A.size(); i++){
 		if(val>*(A[i].begin())) val=*(A[i].begin());
 	}
 	return val;
 }
 
 void add_rows(std::list<double> &row_u, std::list<double> &row_l, std::list<double> &sum){
-	auto it_u= row_u.begin();
+	auto it_u= row_u.begin(); 
 	auto it_l= row_l.begin();
-	for(auto it=sum.begin(); it!=sum.end(); it++){
-		*(it)=*(it_u)+*(it_l);
+	*(sum.begin())=*(row_u.begin())-*(row_l.begin());
+	it_u++;
+	it_l++;
+	for(auto it=std::next(sum.begin()); it!=sum.end(); it++){
+		*(it)=-*(it_u)+*(it_l); //we had x_n<=*(it_u) and *(it_l)<=x_n, so now we want *(it_l)-*(it_u)<=0
 		it_u++;
 		it_l++;
 	}
@@ -105,6 +108,13 @@ void set_first_variable(std::vector<std::list<double> > &A, double val){ //We ar
 	}
 }
 
+void put_variables_to_other_side(std::list<double> &vec){
+		
+		for(auto it=std::next(vec.begin()); it!=vec.end(); it++){
+		*(it)=*(it)*-1;
+	}
+}
+
 void fouriermotzkin(std::vector<std::list<double> > &mat, size_t num_rows, size_t num_cols){
 	std::vector<std::vector<std::list<double> > > A;
 	std::vector<double> admissible_solution(mat[0].size()-1, 0); //num_cols=number of variables+1 (because we also store b in a column)
@@ -116,7 +126,7 @@ void fouriermotzkin(std::vector<std::list<double> > &mat, size_t num_rows, size_
 		std::vector<std::list<double> > N;
 			
 		//classifying the inequalities
-		for(size_t k=0; k<A.back().size(); k++){ //We always look at the last system to classify its inequalities (which we will combine and store onto the next element, aka matrix of A) //WORKS CORRECTLY
+		for(size_t k=0; k<A.back().size(); k++){ //We always look at the last system to classify its inequalities (which we will combine and store onto the next element, aka matrix of A) 
 			if(A.back()[k].back()==0){
 				N.push_back(A.back()[k]); //these don't contain x_n
 				N.back().pop_back();
@@ -124,37 +134,29 @@ void fouriermotzkin(std::vector<std::list<double> > &mat, size_t num_rows, size_
 			if(A.back()[k].back()>0){
 				U.push_back(A.back()[k]); //these are of form x_n<=sth.
 				normalize(U.back());
+				put_variables_to_other_side(U.back()); //so that x_1,... x_{n-1} go to the right side, we switch their signs. Now we have 0<=l1x1+... etc.
+
 				(U.back()).pop_back();
 			}
 			if(A.back()[k].back()<0) {
 				L.push_back(A.back()[k]); //these are of form x_n>=sth.
 				normalize(L.back());
+				put_variables_to_other_side(L.back()); //so that x_1,... x_{n-1} go to the right side, we switch their signs. Now we have 0<=l1x1+... etc.
 				(L.back()).pop_back();
 			}
 		}
-		/*std::cout<<"test1"<<std::endl;
-		std::cout<<"U: "<<std::endl;
-		printmatrix(U);
-		std::cout<<std::endl;
-		std::cout<<"L: "<<std::endl;
-		printmatrix(L);
-		std::cout<<std::endl;
-		std::cout<<"N: "<<std::endl;
-		printmatrix(N);
-		std::cout<<std::endl;*/
-		//we get the new inequalities*/
+		//we get the new inequalities
 		std::vector<std::list<double> > B;
 		if((not U.empty()) and not L.empty()){
-			std::list<double> sum(U[0].size(), 0); 
-			for(int k=0; k<U.size(); k++){
-				for(int j=0; j<L.size(); j++){
+			 
+			for(size_t k=0; k<U.size(); k++){
+				for(size_t j=0; j<L.size(); j++){
+					std::list<double> sum(U[k].size(), 0);
 					add_rows(U[k], L[j], sum);
 					B.push_back(sum);
-					
 				}
 			}
-	}
-		//std::cout<<"test1";
+		}
 		
 		for(size_t k=0; k<N.size(); k++){
 			B.push_back(N[k]);
@@ -167,7 +169,6 @@ void fouriermotzkin(std::vector<std::list<double> > &mat, size_t num_rows, size_
 			}
 			if(L.empty()){//in this case, x_n only has upper bounds. So we can set a very small number and continue.
 				admissible_solution[U[0].size()]=small;
-				std::cout<<A.size()<<" is small";
 				set_last_variable(A.back(),small) ;
 			}
 			
@@ -177,27 +178,30 @@ void fouriermotzkin(std::vector<std::list<double> > &mat, size_t num_rows, size_
 	}
 	
 	/*deciding if the original matrix is admissible, i.e. the last system is admissible. The last system consists of 0<=b, where the 
-	/*b's are components of 1-column matrix in the last system. Hence it suffices to check all b's are larger than 0
-	std::cout<<"test3";*/
+	  b's are components of 1-column matrix in the last system. Hence it suffices to check all b's are larger than 0;*/
 	bool admissible = true;
 	for(size_t i =0 ; i<A.back().size(); i++){ //iterating over all columns
-		std::cout<<*(A.back()[i].begin())<<std::endl;
 		if(*(A.back()[i].begin())<0) admissible=false;
 	}
 	/*backtracking*/
 	if(admissible){
 		size_t var_index=0; //Throughout commentary, let us call this number n. 
-		for(size_t i=A.size()-1; i>-1; i--){ //A.size()=number of phases. We set some values without adding a new phase to them, so if we have such a situation, we need to skip that. In that case, we increment var_index and go on in the for-loop. That is, we set the variables that we found not using the variable i (because that only counts the actual phases), but using the variable var_index.
+		for(size_t phase=0; phase<A.size()-1; phase++){ //A.size()=number of phases. We set some values without adding a new phase to them, so if we have such a situation, we need to skip that. In that case, we increment var_index and go on in the for-loop. That is, we set the variables that we found not using the variable i (because that only counts the actual phases), but using the variable var_index.
+			size_t i = A.size()-2-phase;
 			while(admissible_solution[var_index]!=0){ //this means that we already set a variable here without a new phase
 				var_index++;
 			}
 			//Starting from the second-to-last iteration, where we had inequalities of form x_1<=some_upper_bound, x_1>=some_lower_bound, 0<=sth. By the thm from the lecture, we know that the smallest upper bound is still at least the biggest of the lower bounds. So we can directly set either of those as a value.
-			double val=big;
+			double val=A[i][0].front()/A[i][0].back();
 			for(size_t j=0; j<A[i].size();j++){ //we only look at inequalities of kind x_n<=sth. A[i][j].back() is the coefficient of the last variable.
-				if(val>*(A[i][j].begin()) and A[i][j].back()>0) val = A[i][j].back();
+				if((val>A[i][j].front()/A[i][j].back() and A[i][j].back()>0) or (val<A[i][j].front()/A[i][j].back() and A[i][j].back()<0)){//in the first case, the 0-term must have been an upper bound and in the second case a lower bound
+					val = A[i][j].front()/A[i][j].back();
+					
+				} 
 			}
 			admissible_solution[var_index]=val;
-			set_first_variable(A[i-1], val); //In one phase prior, we plug in the value of x_n.
+			if(i!=0) set_first_variable(A[i-1], val); //In one phase prior, we plug in the value of x_n.
+			//printmatrix(A[i-1]);
 			var_index++;
 		}
 		for(size_t i = 0; i<admissible_solution.size(); i++){
@@ -213,7 +217,7 @@ void fouriermotzkin(std::vector<std::list<double> > &mat, size_t num_rows, size_
 
 int main(int argc, char* argv[])
 { 
-    size_t num_rows, num_cols;
+    size_t num_rows=0, num_cols=0;
     std::list<double> c;
     std::vector< std::list<double> > A; //b ist die erste Spalte von A
     readfile(num_rows, num_cols, c, A, argv[1]);
