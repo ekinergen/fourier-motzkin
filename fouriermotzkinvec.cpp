@@ -8,7 +8,7 @@ const double small=-10000;
 const double big = 10000; //these can be changed, our test instances are small enough anyway. I deliberately didn't choose them too big in order to prevent overflows.
 
 void readfile(size_t num_rows, size_t num_cols, std::list<double> &c, std::vector< std::list<double> > &A, char* filename){
-    std::ifstream infile(filename); //open the file
+	std::ifstream infile(filename); //open the file
     std::string line;
     if (infile.is_open() && infile.good()) {
         int counter = 0;
@@ -115,7 +115,7 @@ void put_variables_to_other_side(std::list<double> &vec){
 	}
 }
 
-void fouriermotzkin(std::vector<std::list<double> > &mat, size_t num_rows, size_t num_cols){
+void fouriermotzkin(std::vector<std::list<double> > &mat){
 	std::vector<std::vector<std::list<double> > > A;
 	std::vector<double> admissible_solution(mat[0].size()-1, 0); //num_cols=number of variables+1 (because we also store b in a column)
 	A.push_back(mat);
@@ -216,12 +216,14 @@ void fouriermotzkin(std::vector<std::list<double> > &mat, size_t num_rows, size_
 }
 
 int main(int argc, char* argv[])
-{ 
+{	
+	int i_hate_Wextra=argc;
+	i_hate_Wextra++;
     size_t num_rows=0, num_cols=0;
     std::list<double> c;
     std::vector< std::list<double> > A; //b ist die erste Spalte von A
     readfile(num_rows, num_cols, c, A, argv[1]);
-	fouriermotzkin(A, num_rows, num_cols);
+	fouriermotzkin(A);
 
     return 0;
 }
